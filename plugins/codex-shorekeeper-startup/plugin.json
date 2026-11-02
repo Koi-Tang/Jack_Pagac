@@ -1,0 +1,45 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "codex-shorekeeper-startup",
+  "version": "1.0.0",
+  "description": "在 Windows 上安装、预览和管理守岸人主题的 Codex 启动动画。",
+  "author": {
+    "name": "Koi-Tang",
+    "url": "https://github.com/Koi-Tang"
+  },
+  "homepage": "https://github.com/Koi-Tang/Jack_Pagac",
+  "repository": "https://github.com/Koi-Tang/Jack_Pagac",
+  "keywords": [
+    "codex",
+    "shorekeeper",
+    "startup-animation",
+    "windows",
+    "守岸人"
+  ],
+  "extensions": {
+    "com.openai": {
+      "requires_local_executor": true,
+      "onboardingSkill": "./skills/shorekeeper-startup/SKILL.md",
+      "interface": {
+        "displayName": "守岸人启动动画",
+        "shortDescription": "安装和管理 Windows Codex 守岸人启动动画",
+        "longDescription": "通过配套技能完成守岸人启动动画的本机检查、安装、预览和卸载。适用于 Windows Codex 桌面应用。社区独立项目，与 OpenAI 或库洛游戏无隶属关系。",
+        "developerName": "Koi-Tang",
+        "category": "Productivity",
+        "capabilities": [
+          "Read",
+          "Write"
+        ],
+        "websiteURL": "https://github.com/Koi-Tang/Jack_Pagac",
+        "defaultPrompt": [
+          "帮我安装守岸人 Codex 启动动画",
+          "预览并检查我的守岸人启动动画",
+          "卸载守岸人启动动画并恢复原入口"
+        ],
+        "brandColor": "#7DD9EE",
+        "composerIcon": "./assets-icon.png",
+        "logo": "./assets-icon.png"
+      }
+    }
+  }
+}

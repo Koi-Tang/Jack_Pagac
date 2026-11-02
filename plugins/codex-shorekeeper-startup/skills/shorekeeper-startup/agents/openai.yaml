@@ -1,0 +1,4 @@
+interface:
+  display_name: "守岸人启动动画"
+  short_description: "安装、预览、诊断和卸载 Windows Codex 守岸人高清启动动画"
+  default_prompt: "使用 $shorekeeper-startup 为我安装守岸人 Codex 启动动画。"

@@ -1,0 +1,26 @@
+{
+  "model": "realesr-animevideov3 x3",
+  "sourceCrop": [
+    690,
+    544
+  ],
+  "srFrames": [
+    2070,
+    1632
+  ],
+  "output": {
+    "width": 2560.0,
+    "height": 1440.0,
+    "fps": 60.0,
+    "frames": 300.0
+  },
+  "duration": 5,
+  "preservesOriginalMotion": true,
+  "timeMapUnchanged": true,
+  "note": "Model based super resolution from the original motion frames; not a native 1440p source recording.",
+  "bytes": 7670411,
+  "encodeSeconds": 18.42985439300537,
+  "modelSource": "https://github.com/xinntao/Real-ESRGAN/blob/master/docs/anime_video_model.md",
+  "startupLogicVersion": "3.0.0",
+  "mediaQualityVersion": "4.0.0"
+}

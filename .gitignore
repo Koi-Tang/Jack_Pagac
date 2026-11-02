@@ -1,0 +1,12 @@
+# Local machine state is never published.
+**/launcher/runtime/
+**/launcher/shortcut-backup/
+**/launcher/last-launch.log
+**/.shorekeeper/
+*.lnk
+*.log
+*.tmp
+__pycache__/
+.DS_Store
+Thumbs.db
+/work/

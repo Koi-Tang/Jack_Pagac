@@ -1,0 +1,20 @@
+{
+  "name": "codex-shorekeeper",
+  "interface": {
+    "displayName": "守岸人 Codex 启动动画"
+  },
+  "plugins": [
+    {
+      "name": "codex-shorekeeper-startup",
+      "source": {
+        "source": "local",
+        "path": "./plugins/codex-shorekeeper-startup"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}

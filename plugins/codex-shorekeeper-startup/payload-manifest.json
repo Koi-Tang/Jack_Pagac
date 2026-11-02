@@ -1,0 +1,127 @@
+﻿{
+    "schemaVersion":  1,
+    "productId":  "codex-shorekeeper-startup",
+    "version":  "1.0.0",
+    "files":  [
+                  {
+                      "path":  "assets/icon.ico",
+                      "sha256":  "0873134a68cdb92d5db098d91fd8ed1ffa4fee9b0af08108cbe89bd366118268",
+                      "size":  42526
+                  },
+                  {
+                      "path":  "assets/media-quality.json",
+                      "sha256":  "0313bc6fb9365a161a18483a3c6157309d4fc4b268b417e41e95e5235a10aa8c",
+                      "size":  659
+                  },
+                  {
+                      "path":  "assets/poster.jpg",
+                      "sha256":  "f50901fe0868528cf3bc892f2c2158694d88da8a823c3d6744eec47f1f61a898",
+                      "size":  59884
+                  },
+                  {
+                      "path":  "assets/startup.mp4",
+                      "sha256":  "5b5095d27bda27f884cb3819381bedd58d7aa752e2e64f5b23c3678be88971c8",
+                      "size":  7670411
+                  },
+                  {
+                      "path":  "install-desktop.cmd",
+                      "sha256":  "42ad1c7aaf4ca3817654c20b8a53d4dbb62615479634e8c4390794a9932a717d",
+                      "size":  116
+                  },
+                  {
+                      "path":  "launch.cmd",
+                      "sha256":  "752bd9c93ac7016e410f8a696a64ccb17184366d371b6c96a97fd929987bf85b",
+                      "size":  48
+                  },
+                  {
+                      "path":  "launcher/inject.mjs",
+                      "sha256":  "d5e82183df92924e9455b27f901c223a506d694ec84a6f42e0f14efe63b2a9ce",
+                      "size":  17926
+                  },
+                  {
+                      "path":  "launcher/install-desktop.ps1",
+                      "sha256":  "dbba90f66eb248fdeefff507e0ead2461e3548ae5671c8d64efe2a442b64628e",
+                      "size":  428
+                  },
+                  {
+                      "path":  "launcher/Launch.cs",
+                      "sha256":  "81111211461d1831bc16970ebb8dfd5a1612e7e065a3f7a59b29256bd65fb1bf",
+                      "size":  1626
+                  },
+                  {
+                      "path":  "launcher/launch.ps1",
+                      "sha256":  "c2dd5f25235620adc82d0473ad069576d54cd55d334a3dff5c70042f5dcef5ec",
+                      "size":  11915
+                  },
+                  {
+                      "path":  "launcher/manage.ps1",
+                      "sha256":  "168d72570e39fcd124e38d9eb1466f9cd6c81bbfa27b12297fda5be3772a6f0c",
+                      "size":  18761
+                  },
+                  {
+                      "path":  "launcher/restore-desktop.ps1",
+                      "sha256":  "731156d5f7f477944ba01e038e9f2f43d34c2950394853b2a9b709b489f1a524",
+                      "size":  368
+                  },
+                  {
+                      "path":  "launcher/shortcut-common.ps1",
+                      "sha256":  "a7852bf3089e2ea7473557b6098705172b413253bbedb8edb06f4fe39c34d9ae",
+                      "size":  10433
+                  },
+                  {
+                      "path":  "launcher/StartupGate.cs",
+                      "sha256":  "ee1d549e5827832416226ee864f1a30bf7ae4da95f5d98884d7d6627eb5e79df",
+                      "size":  23657
+                  },
+                  {
+                      "path":  "launcher/StartupGate.exe",
+                      "sha256":  "8f8b2293a32a14c43401075a6e528d5108540caa53da22e64ecb7f42e989bc90",
+                      "size":  20992
+                  },
+                  {
+                      "path":  "LICENSE",
+                      "sha256":  "6a8009459f56daf453a811190fc9f93ccd7124144a026182c3cf3cc70e0a797c",
+                      "size":  1256
+                  },
+                  {
+                      "path":  "overlay.js",
+                      "sha256":  "48a10afe0187d9ea0c5ec0b24156887d347776ea836cba076cac904b2f1f67d9",
+                      "size":  14350
+                  },
+                  {
+                      "path":  "preview.cmd",
+                      "sha256":  "402409fc0ad1a3115fd325c0423c187fdfd4e022797fa5d5122b5fefb43e8663",
+                      "size":  58
+                  },
+                  {
+                      "path":  "preview.html",
+                      "sha256":  "6a26a8293bbfd3410e6c92ce75f6148b527b9c143f731dd80f6e9c2e9c485f2e",
+                      "size":  3548
+                  },
+                  {
+                      "path":  "preview-overlay.js",
+                      "sha256":  "31bf3bcc02c962ebee35ff26a23378900df16b45dafa83f613bf232eb784fd9a",
+                      "size":  14542
+                  },
+                  {
+                      "path":  "restore.cmd",
+                      "sha256":  "896e47c01f848db2a2d110e94d9d9deae0df630c29b0c24c8f1af80dd75cc597",
+                      "size":  68
+                  },
+                  {
+                      "path":  "Shorekeeper-Codex.exe",
+                      "sha256":  "fe073d1b8f409fa51ad71b21424d66523da1e5f0c22a83127f6cd042e0932da7",
+                      "size":  48128
+                  },
+                  {
+                      "path":  "THIRD_PARTY_NOTICES.md",
+                      "sha256":  "42e9648ef8cd8c335cc98013781b3ae42af684cb12a54584bb2e725a6b668ec1",
+                      "size":  1597
+                  },
+                  {
+                      "path":  "uninstall.cmd",
+                      "sha256":  "8f86d57b40ee68469f50e2e85fd81bbd1a721a63c20a83fc8c72f27cea9fbd52",
+                      "size":  147
+                  }
+              ]
+}

@@ -1,0 +1,12 @@
+* text=auto
+*.ps1 text eol=crlf
+*.cmd text eol=crlf
+*.cs text eol=crlf
+*.mp4 binary
+*.jpg binary
+*.png binary
+*.gif binary
+*.ico binary
+*.exe binary
+# Payload is hashed byte-for-byte; checkout must preserve original encoding/BOM/EOL.
+/plugins/codex-shorekeeper-startup/payload/** -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
