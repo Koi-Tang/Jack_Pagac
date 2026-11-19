@@ -276,6 +276,29 @@ internal sealed class StartupGate : ApplicationContext {
         uint foregroundPid;GetWindowThreadProcessId(GetForegroundWindow(),out foregroundPid);
         File.WriteAllText(file,"{\"ok\":"+(ok?"true":"false")+",\"code\":\""+code+"\",\"pid\":"+pid+",\"foregroundPid\":"+foregroundPid+",\"hwnd\":\""+hwnd.ToInt64()+"\",\"alpha\":"+alpha+",\"foreground\":"+(hwnd!=IntPtr.Zero&&GetForegroundWindow()==hwnd?"true":"false")+",\"visible\":"+(hwnd!=IntPtr.Zero&&IsWindowVisible(hwnd)?"true":"false")+",\"iconic\":"+(hwnd!=IntPtr.Zero&&IsIconic(hwnd)?"true":"false")+"}");
     }
+    private static int ExistingWindowCommand(string[] args, bool activate) {
+        int pid=0; string output=args[3];
+        try {
+            pid=int.Parse(args[1]); string executable=Path.GetFullPath(args[2]);
+            if(!OfficialExe(executable)){JsonResult(output,"untrusted-executable",false,pid,IntPtr.Zero);return 4;}
+            long started;
+            using(var process=Process.GetProcessById(pid)) {
+                if(process.SessionId!=Process.GetCurrentProcess().SessionId){JsonResult(output,"different-session",false,pid,IntPtr.Zero);return 4;}
+                started=args.Length==5?long.Parse(args[4],CultureInfo.InvariantCulture):process.StartTime.ToUniversalTime().Ticks;
+            }
+            // A caller's snapshot prevents PID reuse between discovery and activation.
+            if(!SameApp(pid,started,executable)){JsonResult(output,"identity-changed",false,pid,IntPtr.Zero);return 4;}
+            IntPtr hwnd=MainWindow(pid);
+            if(!activate){JsonResult(output,"window-status",true,pid,hwnd);return 0;}
+            uint color,flags;byte alpha;
+            // Never expose a window still owned by a cold-start opacity gate.
+            if(hwnd!=IntPtr.Zero&&GetLayeredWindowAttributes(hwnd,out color,out alpha,out flags)&&alpha==0){JsonResult(output,"startup-in-progress",false,pid,hwnd);return 6;}
+            hwnd=ForegroundOwnedMain(pid,started,executable,3000);
+            JsonResult(output,hwnd!=IntPtr.Zero?"foreground-confirmed":"foreground-not-confirmed",hwnd!=IntPtr.Zero,pid,hwnd);
+            return hwnd!=IntPtr.Zero?0:5;
+        }catch(ArgumentException){JsonResult(output,"process-exited",false,pid,IntPtr.Zero);return 4;}
+        catch{JsonResult(output,"process-inspection-failed",false,pid,IntPtr.Zero);return 4;}
+    }
     private static bool OfficialExe(string exe) {
         try {
             exe=Path.GetFullPath(exe);
@@ -341,20 +364,9 @@ internal sealed class StartupGate : ApplicationContext {
     }
     [STAThread] private static int Main(string[] args) {
         try {
-            if(args.Length==4&&args[0]=="--status"){
-                int pid=int.Parse(args[1]);string exe=Path.GetFullPath(args[2]);
-                if(!OfficialExe(exe)){JsonResult(args[3],"untrusted-executable",false,pid,IntPtr.Zero);return 4;}
-                using(var p=Process.GetProcessById(pid))if(!SameApp(pid,p.StartTime.ToUniversalTime().Ticks,exe))return 4;
-                JsonResult(args[3],"window-status",true,pid,MainWindow(pid));return 0;
-            }
+            if((args.Length==4||args.Length==5)&&args[0]=="--status")return ExistingWindowCommand(args,false);
             if(args.Length==5&&args[0]=="--verify-port")return VerifyPort(int.Parse(args[1]),args[2],args[3],int.Parse(args[4]));
-            if(args.Length==4&&args[0]=="--activate") {
-                int pid=int.Parse(args[1]);string exe=Path.GetFullPath(args[2]);
-                if(!OfficialExe(exe)){JsonResult(args[3],"untrusted-executable",false,pid,IntPtr.Zero);return 4;}
-                long started;using(var p=Process.GetProcessById(pid))started=p.StartTime.ToUniversalTime().Ticks;
-                IntPtr hwnd=ForegroundOwnedMain(pid,started,exe,3000);
-                JsonResult(args[3],hwnd!=IntPtr.Zero?"foreground-confirmed":"foreground-not-confirmed",hwnd!=IntPtr.Zero,pid,hwnd);return hwnd!=IntPtr.Zero?0:5;
-            }
+            if((args.Length==4||args.Length==5)&&args[0]=="--activate")return ExistingWindowCommand(args,true);
             if (args.Length == 6 && args[0] == "--watchdog") { Rescue(args[1], int.Parse(args[2]), long.Parse(args[3]), int.Parse(args[4]), args[5]); return 0; }
             if (args.Length != 3) return 2;
             try { SetProcessDpiAwarenessContext(new IntPtr(-4)); } catch {}

@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "codex-shorekeeper-startup",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "在 Windows 上安装、预览和管理守岸人主题的 Codex 启动动画。",
   "author": {
     "name": "Koi-Tang",

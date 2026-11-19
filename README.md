@@ -4,14 +4,13 @@ Windows Codex 主窗口里的 5 秒守岸人启动动画：碎线聚合、线稿
 
 ![5 秒启动与转场预览](docs/preview.gif)
 
-[下载完整安装包](https://github.com/Koi-Tang/Jack_Pagac/archive/refs/heads/main.zip) · [高清动画](plugins/codex-shorekeeper-startup/payload/assets/startup.mp4) · [画质对比](docs/quality-comparison.png)
+[下载 v1.1.0 完整安装包](https://github.com/Koi-Tang/Jack_Pagac/archive/refs/tags/v1.1.0.zip) · [高清动画](plugins/codex-shorekeeper-startup/payload/assets/startup.mp4) · [画质对比](docs/quality-comparison.png)
 
 ## 直接安装
 
 1. 下载上面的 ZIP，右键“全部解压”。不要在 ZIP 里直接运行。
 2. 双击根目录 `install.cmd`，等待显示安装成功。不需要管理员权限。
-3. 如果 Codex 已从原版入口运行，请先保存工作，再从系统托盘完全退出一次。
-4. 双击桌面的 **守岸人 Codex**。以后从这个入口启动，即可播放动画。
+3. 双击桌面的 **守岸人 Codex**。完全退出后再打开时，会从第 0 帧播放 5 秒开场。若 Codex 已打开、最小化或隐藏在托盘，则直接恢复聊天窗口。动画播到一半再次点击会继续当前播放。
 
 首次默认只创建一个“守岸人 Codex”入口，保留现有 ChatGPT / Codex 图标；升级会延续此前已选择的入口模式。动画在真实 Codex 窗口内播放，等待官方客户端初始化的时间不计入 5 秒；窗口真正显示后才从第 0 帧播放。Esc、空格、回车或右下角按钮可跳过。
 
@@ -62,7 +61,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\plugins\codex-shorekee
 - 自动发现并验证官方包和发布者，使用 Codex 自带 Node.js。不下载第三方运行时，不指定或迁移用户资料目录。
 - 通过 `127.0.0.1:19341` 本地调试接口，核对监听进程、目标页面和原生窗口后载入临时动画层。接口随官方进程存在；不要将端口转发到网络。
 - 不读取账号和聊天文件，不改 `app.asar`。官方界面、应用包结构或调试协议更新后可能需要适配。
-- 首次从原版入口打开的运行中实例通常没有动画接口。安装器不会替你结束它；从托盘退出一次后使用新入口即可。
+- 从原版入口启动的实例也能通过 Windows 窗口恢复进入当前聊天。已有实例走窗口恢复流程，只有冷启动才加载视频和动画层。日志中的 `resumed-existing` 表示已恢复已有实例。
 - 错误诊断在安装目录 `launcher/runtime/`，最近一次为 `launcher/last-launch.log`。公开反馈前请去除日志里的本机路径。
 
 ## 开发与验证
@@ -73,7 +72,7 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\plugins\codex-shorekee
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\plugins\codex-shorekeeper-startup\scripts\build.ps1
 ```
 
-隔离生命周期测试见 [installation-lifecycle.ps1](plugins/codex-shorekeeper-startup/tests/installation-lifecycle.ps1)，只使用临时桌面目录和临时安装目录，不操作真实快捷方式，也不启动真实 Codex。版本号 `1.0.0` 表示插件发行版；内含启动协议 v3 和 AI 画质素材 v4。
+隔离生命周期测试见 [installation-lifecycle.ps1](plugins/codex-shorekeeper-startup/tests/installation-lifecycle.ps1)，只使用临时桌面目录和临时安装目录。v1.1.0 新增已运行实例恢复，沿用现有开场与转场。
 
 ## 许可与来源
 

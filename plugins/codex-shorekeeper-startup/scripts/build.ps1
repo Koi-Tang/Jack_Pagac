@@ -1,10 +1,13 @@
 ﻿#Requires -Version 5.1
 [CmdletBinding()]
-param([string]$Version = '1.0.0', [switch]$ManifestOnly)
+param([string]$Version, [switch]$ManifestOnly)
 $ErrorActionPreference = 'Stop'
 $pluginRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $payload = Join-Path $pluginRoot 'payload'
 try {
+    if (-not $PSBoundParameters.ContainsKey('Version')) {
+        $Version = (Get-Content -LiteralPath (Join-Path $pluginRoot 'plugin.json') -Raw -Encoding UTF8 | ConvertFrom-Json).version
+    }
     if ($Version -notmatch '^\d+\.\d+\.\d+([-.][A-Za-z0-9.-]+)?$') { throw 'invalid-version' }
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'manage.ps1') -Destination (Join-Path $payload 'launcher\manage.ps1') -Force
     if (-not $ManifestOnly) {

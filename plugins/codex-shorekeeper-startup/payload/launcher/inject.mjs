@@ -15,38 +15,53 @@ const value = name => { const i = args.indexOf(name); return i < 0 ? undefined :
 const port = Number(value('--port') || 19341);
 const expectedExe = value('--expected-exe');
 const expectedPid = Number(value('--expected-pid') || 0);
+const expectedStartTicks = value('--expected-start-ticks');
 const readyFile = value('--ready-file') ? resolve(value('--ready-file')) : null;
+const activateOnly = args.includes('--activate-only');
 const diagnose = args.includes('--dry-run') || args.includes('--diagnose');
 const prefix = readyFile || (value('--run-prefix') ? resolve(value('--run-prefix')) : resolve(base, 'launcher/runtime', randomUUID().replaceAll('-', '')));
 const resultFile = prefix + '.result.json';
-let boundPid = expectedPid, successful = false;
+let boundPid = expectedPid, successful = false, signalsValidated = false;
+let operationDeadline = Infinity;
 const exists = path => access(path).then(() => true, () => false);
 const log = (event, fields = {}) => console.log(JSON.stringify({ time: new Date().toISOString(), event, ...fields }));
 process.on('uncaughtException', error => {
-    if (readyFile) { try { writeFileSync(readyFile + '.abort', 'injector-failed'); } catch {} }
+    if (signalsValidated && readyFile) { try { writeFileSync(readyFile + '.abort', 'injector-failed'); } catch {} }
     log('injection-stopped', { reason: error.message, applicationPreserved: true });
-    if (!successful) saveResult(false, error.code || 'unhandled-error', error.message);
+    if (!successful && signalsValidated) { try { saveResult(false, error.code || 'unhandled-error', error.message); } catch {} }
     process.exit(successful ? 0 : 1);
 });
 
 if (!Number.isInteger(port) || port < 1024 || port > 65535) throw new Error('Invalid local port');
 if (!Number.isInteger(expectedPid) || expectedPid < 0) throw new Error('Invalid expected process');
+if (expectedStartTicks !== undefined && (!/^[1-9][0-9]{0,18}$/.test(expectedStartTicks) || BigInt(expectedStartTicks) > 9223372036854775807n)) throw new Error('Invalid expected process start time');
 if (!prefix.toLowerCase().startsWith(resolve(base, 'launcher/runtime').toLowerCase() + '\\') || !/^[a-f0-9]{32}$/i.test(basename(prefix))) throw new Error('Invalid native gate signal path');
+if (activateOnly && diagnose) throw new Error('Activation and diagnostics are separate operations');
 if (diagnose) {
     log('diagnose', { node: process.version, builtInWebSocket: typeof WebSocket === 'function', overlay: await exists(resolve(base, 'overlay.js')), video: await exists(resolve(base, 'assets/startup.mp4')), port, noApplicationStarted: true });
     process.exit(0);
 }
+if (expectedPid < 1) throw new Error('An expected process ID is required');
+if (activateOnly && (readyFile || !value('--run-prefix') || !expectedStartTicks)) throw new Error('Activation requires a run prefix and verified process start time, without a native startup gate');
+if (!activateOnly && !readyFile) throw new Error('Cold startup injection requires a native ready file');
 if (process.platform !== 'win32' || !expectedExe || basename(expectedExe).toLowerCase() !== 'chatgpt.exe') throw new Error('A verified Windows Codex executable is required');
 if (typeof WebSocket !== 'function') throw new Error('Node.js 22 or newer is required');
 await mkdir(resolve(base, 'launcher/runtime'), { recursive: true });
+signalsValidated = true;
+function timeoutFor(maximum) {
+    const remaining = operationDeadline - Date.now();
+    if (remaining <= 0) throw Object.assign(new Error('Existing-window activation timed out'), { code: 'activation-timeout' });
+    return Math.max(1, Math.min(maximum, remaining));
+}
 function saveResult(ok, code, message, extra = {}) {
-    successful = ok;
     writeFileSync(resultFile, JSON.stringify({ ok, code, message, pid: boundPid, time: new Date().toISOString(), ...extra }));
+    successful = ok;
 }
 function native(mode, values, suffix, last) {
     const file = prefix + suffix;
     let exit = 0;
-    try { execFileSync(resolve(base, 'launcher/StartupGate.exe'), [mode, ...values, file, ...(last === undefined ? [] : [last])], { windowsHide: true, timeout: 10000, stdio: 'ignore' }); }
+    const timeout = timeoutFor(activateOnly ? (mode === '--activate' ? 3500 : 2500) : 10000);
+    try { execFileSync(resolve(base, 'launcher/StartupGate.exe'), [mode, ...values, file, ...(last === undefined ? [] : [last])], { windowsHide: true, timeout, stdio: 'ignore' }); }
     catch (error) { exit = error.status || 1; }
     let result;
     try { result = JSON.parse(readFileSync(file, 'utf8')); } catch { const error=new Error('Native helper returned no diagnostic result');error.code='native-result-missing';throw error; }
@@ -54,7 +69,7 @@ function native(mode, values, suffix, last) {
     return result;
 }
 function activateNative() {
-    const status=native('--activate',[String(boundPid),expectedExe],'.foreground.json');
+    const status=native('--activate',[String(boundPid),expectedExe],'.foreground.json',expectedStartTicks);
     if(!status.visible||status.iconic||!status.foreground||status.alpha===0){const error=new Error('Native window is not physically foreground-visible');error.code='window-not-visible';throw error;}
     log('foreground-confirmed',status);
     return status;
@@ -63,19 +78,23 @@ function activateNative() {
 
 function verifyOwner() {
     const status = native('--verify-port', [String(port), expectedExe], '.owner.json', String(expectedPid || boundPid));
-    boundPid = status.pid;
+    if (Number(status.pid) !== expectedPid) throw Object.assign(new Error('Local endpoint process identity changed'), { code: 'identity-changed' });
+    boundPid = Number(status.pid);
     return status;
 }
 
-const media = await readFile(resolve(base, 'assets/startup.mp4'));
-let poster = '';
-for (const [name, mime] of [['poster.jpg', 'image/jpeg'], ['poster.png', 'image/png'], ['poster.webp', 'image/webp']]) {
-    const path = resolve(base, 'assets', name);
-    if (await exists(path)) { poster = `data:${mime};base64,${(await readFile(path)).toString('base64')}`; break; }
+async function readOverlaySource() {
+    const media = await readFile(resolve(base, 'assets/startup.mp4'));
+    let poster = '';
+    for (const [name, mime] of [['poster.jpg', 'image/jpeg'], ['poster.png', 'image/png'], ['poster.webp', 'image/webp']]) {
+        const path = resolve(base, 'assets', name);
+        if (await exists(path)) { poster = `data:${mime};base64,${(await readFile(path)).toString('base64')}`; break; }
+    }
+    let source = await readFile(resolve(base, 'overlay.js'), 'utf8');
+    if (!source.includes('__MEDIA_DATA_URL__')) throw new Error('overlay.js is missing its media placeholder');
+    source = source.replaceAll('__MEDIA_DATA_URL__', JSON.stringify(`data:video/mp4;base64,${media.toString('base64')}`)).replaceAll('__POSTER_DATA_URL__', JSON.stringify(poster));
+    return source;
 }
-let source = await readFile(resolve(base, 'overlay.js'), 'utf8');
-if (!source.includes('__MEDIA_DATA_URL__')) throw new Error('overlay.js is missing its media placeholder');
-source = source.replaceAll('__MEDIA_DATA_URL__', JSON.stringify(`data:video/mp4;base64,${media.toString('base64')}`)).replaceAll('__POSTER_DATA_URL__', JSON.stringify(poster));
 
 function mainPage(target) {
     try {
@@ -89,10 +108,11 @@ function localSocket(address) {
     return u.href;
 }
 async function connect(address) {
+    const connectionTimeout = timeoutFor(activateOnly ? 1200 : 5000);
     const socket = new WebSocket(address), pending = new Map();
     let serial = 0;
     await new Promise((accept, reject) => {
-        const timer = setTimeout(() => { socket.close(); reject(new Error('CDP connection timed out')); }, 5000);
+        const timer = setTimeout(() => { socket.close(); reject(new Error('CDP connection timed out')); }, connectionTimeout);
         socket.addEventListener('open', () => { clearTimeout(timer); accept(); }, { once: true });
         socket.addEventListener('error', () => { clearTimeout(timer); reject(new Error('CDP connection failed')); }, { once: true });
     });
@@ -105,7 +125,7 @@ async function connect(address) {
     socket.addEventListener('close', () => { for (const request of pending.values()) { clearTimeout(request.timer); request.reject(new Error('CDP closed during navigation')); } pending.clear(); });
     return {
         call(method, params = {}) { return new Promise((accept, reject) => {
-            const id = ++serial, timer = setTimeout(() => { pending.delete(id); reject(new Error(`${method} timed out`)); }, 25000);
+            const id = ++serial, timer = setTimeout(() => { pending.delete(id); reject(new Error(`${method} timed out`)); }, timeoutFor(activateOnly ? 1200 : 25000));
             pending.set(id, { accept, reject, timer });
             try { socket.send(JSON.stringify({ id, method, params })); } catch (error) { clearTimeout(timer); pending.delete(id); reject(error); }
         }); },
@@ -164,10 +184,76 @@ async function restoreBrowserWindow(client) {
     }catch(error){log('browser-window-api',{available:false,reason:error.message});}
     try{await client.call('Page.bringToFront');}catch(error){log('page-bring-to-front-unavailable',{reason:error.message});}
 }
+async function activateExisting() {
+    operationDeadline = Date.now() + 8000;
+    let lastFailure = 'Main application page not available', lastCode = 'main-page-timeout';
+    try {
+        // Native identity checks include the process creation time, so a reused
+        // PID or a different listener can never receive the activation request.
+        native('--status', [String(boundPid), expectedExe], '.foreground-check.json', expectedStartTicks);
+        while (Date.now() < operationDeadline) {
+            verifyOwner();
+            let targets;
+            try {
+                const response = await fetch(`http://127.0.0.1:${port}/json/list`, { signal: AbortSignal.timeout(timeoutFor(900)), redirect: 'error' });
+                if (!response.ok) throw new Error('Target discovery HTTP ' + response.status);
+                targets = await response.json();
+                if (!Array.isArray(targets)) throw new Error('Invalid target discovery response');
+            } catch (error) {
+                lastFailure = error.message;
+                lastCode = error.code || 'target-discovery-failed';
+                await delay(Math.min(80, timeoutFor(80)));
+                continue;
+            }
+            for (const target of targets.filter(mainPage)) {
+                verifyOwner();
+                native('--status', [String(boundPid), expectedExe], '.foreground-check.json', expectedStartTicks);
+                let client, page;
+                try {
+                    client = await connect(localSocket(target.webSocketDebuggerUrl));
+                    // Verify the current document as well as the discovery URL.
+                    // This reads only the page identity and mount/visibility state.
+                    const result = await client.call('Runtime.evaluate', { expression: `({url:location.href,mounted:document.readyState==='complete'&&!!document.getElementById('root')})`, returnByValue: true });
+                    page = result.result?.value;
+                } catch (error) {
+                    client?.close();
+                    lastFailure = error.message;
+                    lastCode = error.code || 'main-page-unavailable';
+                    continue;
+                }
+                try {
+                    if (!page?.mounted || !mainPage({ type: 'page', url: page.url })) continue;
+                    await restoreBrowserWindow(client);
+                    const foreground = activateNative();
+                    let visibility;
+                    const visibleEnd = Math.min(operationDeadline, Date.now() + 1000);
+                    while (Date.now() < visibleEnd) {
+                        const result = await client.call('Runtime.evaluate', { expression: `({visible:document.visibilityState==='visible',focus:document.hasFocus()})`, returnByValue: true });
+                        visibility = result.result?.value;
+                        if (visibility?.visible) break;
+                        await delay(Math.min(25, timeoutFor(25)));
+                    }
+                    if (!visibility?.visible) throw Object.assign(new Error('The existing main page is not visible'), { code: 'page-not-visible' });
+                    verifyOwner();
+                    const verified = native('--status', [String(boundPid), expectedExe], '.foreground-check.json', expectedStartTicks);
+                    if (!verified.foreground || !verified.visible || verified.iconic || verified.alpha === 0 || verified.hwnd !== foreground.hwnd) throw Object.assign(new Error('The existing window is not foreground-visible'), { code: 'window-not-visible' });
+                    saveResult(true, 'resumed-existing', 'Existing main window restored; startup timeline preserved', { foreground: verified, page: visibility });
+                    log('resumed-existing', { pid: boundPid, hwnd: verified.hwnd });
+                    return;
+                } finally { client.close(); }
+            }
+            await delay(Math.min(80, timeoutFor(80)));
+        }
+        throw Object.assign(new Error(lastFailure), { code: lastCode });
+    } catch (error) {
+        const code = error.code || 'activation-failed';
+        saveResult(false, code, error.message);
+        log('activation-stopped', { code, reason: error.message, applicationPreserved: true });
+        process.exitCode = 1;
+    }
+}
 async function revealWhenReady(client) {
-    // Existing windows can be minimized or hidden in the tray. Restore the
-    // prepared overlay first, then wait for its paused first frame to decode.
-    if(!readyFile) { await restoreBrowserWindow(client); activateNative(); }
+    // Cold startup alone prepares a paused first frame behind the native gate.
     const end=Date.now()+11000;
     let ready=false;
     while(Date.now()<end) {
@@ -179,16 +265,14 @@ async function revealWhenReady(client) {
     }
     if(!ready)throw Object.assign(new Error('No paused first frame or poster became ready'),{code:'first-frame-timeout'});
     log('paused-first-frame-ready');
-    if(readyFile) {
-        await writeFile(readyFile+'.ready','paused-first-frame');
-        const end=Date.now()+4500;
-        while(!(await exists(readyFile+'.shown'))&&Date.now()<end){
-            if(await exists(readyFile+'.abort'))throw Object.assign(new Error('Native gate failed open'),{code:'gate-failed-open'});
-            await delay(15);
-        }
-        const shown=await readFile(readyFile+'.shown','utf8').catch(()=> '');
-        if(shown.trim()!=='foreground-confirmed')throw Object.assign(new Error('Native window reveal was not confirmed: '+shown.trim()),{code:'native-reveal-not-confirmed'});
+    await writeFile(readyFile+'.ready','paused-first-frame');
+    const shownEnd=Date.now()+4500;
+    while(!(await exists(readyFile+'.shown'))&&Date.now()<shownEnd){
+        if(await exists(readyFile+'.abort'))throw Object.assign(new Error('Native gate failed open'),{code:'gate-failed-open'});
+        await delay(15);
     }
+    const shown=await readFile(readyFile+'.shown','utf8').catch(()=> '');
+    if(shown.trim()!=='foreground-confirmed')throw Object.assign(new Error('Native window reveal was not confirmed: '+shown.trim()),{code:'native-reveal-not-confirmed'});
     await restoreBrowserWindow(client);
     const foreground=activateNative();
     await client.call('Runtime.evaluate',{expression:'window.focus();{const h=document.getElementById("shorekeeper-codex-startup");if(h){h.tabIndex=-1;h.style.outline="none";h.focus({preventScroll:true});}}',returnByValue:true,userGesture:true});
@@ -201,7 +285,7 @@ async function revealWhenReady(client) {
         await delay(25);
     }
     if(!visible)throw Object.assign(new Error('The main page is not visible: '+JSON.stringify(lastVisibility)),{code:'page-not-visible'});
-    const verified = native('--status',[String(boundPid),expectedExe],'.foreground-check.json');
+    const verified = native('--status',[String(boundPid),expectedExe],'.foreground-check.json',expectedStartTicks);
     if(!verified.foreground||!verified.visible||verified.iconic||verified.alpha===0||verified.hwnd!==foreground.hwnd)throw Object.assign(new Error('Foreground changed before the first frame'),{code:'foreground-changed-before-start'});
     log('visible-start-proof',{...verified,page:lastVisibility});
     await client.call('Runtime.evaluate',{expression:revealExpression({foregroundConfirmed:true,hwnd:verified.hwnd,pid:boundPid,confirmedAt:Date.now()}),returnByValue:true,userGesture:true});
@@ -216,47 +300,57 @@ async function revealWhenReady(client) {
     return {foreground,start:ack};
 }
 
-verifyOwner();log('verified-local-client',{port,pid:boundPid});
-let lastFailure='Main application page not available',lastCode='main-page-timeout',installed=false,attached=false;
-const deadline=Date.now()+45000;
-while(Date.now()<deadline&&!installed) {
-    try {
-        if(readyFile&&await exists(readyFile+'.abort')){lastCode='gate-failed-open';break;}
-        const response=await fetch(`http://127.0.0.1:${port}/json/list`,{signal:AbortSignal.timeout(1200),redirect:'error'});
-        if(!response.ok)throw new Error('Target discovery HTTP '+response.status);
-        const targets=await response.json();
-        for(const target of targets.filter(mainPage)) {
-            let client;
-            try {
-                verifyOwner();client=await connect(localSocket(target.webSocketDebuggerUrl));
-                await client.call('Runtime.enable');
-                const mounted=await client.call('Runtime.evaluate',{expression:`document.readyState==='complete'&&!!document.getElementById('root')`,returnByValue:true});
-                if(mounted.result?.value!==true)continue;
-                const active=await client.call('Runtime.evaluate',{expression:`document.getElementById('shorekeeper-codex-startup')?.getAttribute('data-stage')`,returnByValue:true});
-                if(['playing','handoff'].includes(active.result?.value)){activateNative();saveResult(true,'already-playing','Existing startup timeline preserved');installed=true;break;}
-                await client.call('Runtime.evaluate',{expression:`(${prepareHandoff.toString()})()`,returnByValue:true});
-                const result=await client.call('Runtime.evaluate',{expression:source,returnByValue:true,awaitPromise:true,userGesture:true});
-                if(result.exceptionDetails)throw Object.assign(new Error(result.exceptionDetails.exception?.description||'Overlay evaluation failed'),{code:'overlay-script-error'});
-                if(!(result.result?.value?.installed||result.result?.value?.alreadyActive))continue;
-                attached=true;
-                const handshake=await revealWhenReady(client);
-                saveResult(true,'started-from-frame-zero','Foreground and visible start acknowledged',{handshake});
-                installed=true;log('overlay-installed');break;
-            }catch(error){
-                lastFailure=error.message;lastCode=error.code||'startup-handshake-failed';
-                log('attempt-failed',{code:lastCode,reason:lastFailure});
-                try{await client?.call('Runtime.evaluate',{expression:cancelExpression,returnByValue:true});}catch{}
-                if(attached)break;
-            }finally{client?.close();}
-        }
-        if(attached&&!installed)break;
-    }catch(error){lastFailure=error.message;lastCode=error.code||'target-discovery-failed';}
-    if(!installed)await delay(80);
+async function runColdStartup() {
+    verifyOwner();log('verified-local-client',{port,pid:boundPid});
+    const source = await readOverlaySource();
+    let lastFailure='Main application page not available',lastCode='main-page-timeout',installed=false,attached=false,preserveExisting=false;
+    const deadline=Date.now()+45000;
+    while(Date.now()<deadline&&!installed) {
+        try {
+            if(readyFile&&await exists(readyFile+'.abort')){lastCode='gate-failed-open';break;}
+            const response=await fetch(`http://127.0.0.1:${port}/json/list`,{signal:AbortSignal.timeout(1200),redirect:'error'});
+            if(!response.ok)throw new Error('Target discovery HTTP '+response.status);
+            const targets=await response.json();
+            for(const target of targets.filter(mainPage)) {
+                let client, prepared=false;
+                try {
+                    verifyOwner();client=await connect(localSocket(target.webSocketDebuggerUrl));
+                    await client.call('Runtime.enable');
+                    const mounted=await client.call('Runtime.evaluate',{expression:`document.readyState==='complete'&&!!document.getElementById('root')`,returnByValue:true});
+                    if(mounted.result?.value!==true)continue;
+                    const active=await client.call('Runtime.evaluate',{expression:`document.getElementById('shorekeeper-codex-startup')?.getAttribute('data-stage')`,returnByValue:true});
+                    if(['playing','handoff'].includes(active.result?.value)){
+                        preserveExisting=true;
+                        throw Object.assign(new Error('An existing startup timeline must be resumed through activation only'),{code:'startup-already-active'});
+                    }
+                    await client.call('Runtime.evaluate',{expression:`(${prepareHandoff.toString()})()`,returnByValue:true});
+                    prepared=true;
+                    const result=await client.call('Runtime.evaluate',{expression:source,returnByValue:true,awaitPromise:true,userGesture:true});
+                    if(result.exceptionDetails)throw Object.assign(new Error(result.exceptionDetails.exception?.description||'Overlay evaluation failed'),{code:'overlay-script-error'});
+                    if(!(result.result?.value?.installed||result.result?.value?.alreadyActive))continue;
+                    attached=true;
+                    const handshake=await revealWhenReady(client);
+                    saveResult(true,'started-from-frame-zero','Foreground and visible start acknowledged',{handshake});
+                    installed=true;log('overlay-installed');break;
+                }catch(error){
+                    lastFailure=error.message;lastCode=error.code||'startup-handshake-failed';
+                    log('attempt-failed',{code:lastCode,reason:lastFailure});
+                    if(prepared){try{await client?.call('Runtime.evaluate',{expression:cancelExpression,returnByValue:true});}catch{}}
+                    if(attached||preserveExisting)break;
+                }finally{client?.close();}
+            }
+            if(preserveExisting||(attached&&!installed))break;
+        }catch(error){lastFailure=error.message;lastCode=error.code||'target-discovery-failed';}
+        if(!installed)await delay(80);
+    }
+    if(!installed){
+        if(readyFile)await writeFile(readyFile+'.abort',lastCode).catch(()=>{});
+        try{activateNative();}catch{}
+        saveResult(false,lastCode,lastFailure);
+        log('overlay-not-installed',{code:lastCode,reason:lastFailure,applicationPreserved:true});
+        process.exitCode=lastCode==='startup-cancelled'?0:1;
+    }
 }
-if(!installed){
-    if(readyFile)await writeFile(readyFile+'.abort',lastCode).catch(()=>{});
-    try{activateNative();}catch{}
-    saveResult(false,lastCode,lastFailure);
-    log('overlay-not-installed',{code:lastCode,reason:lastFailure,applicationPreserved:true});
-    process.exitCode=lastCode==='startup-cancelled'?0:1;
-}
+
+if (activateOnly) await activateExisting();
+else await runColdStartup();

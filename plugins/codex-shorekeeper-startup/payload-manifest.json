@@ -1,7 +1,7 @@
 ﻿{
     "schemaVersion":  1,
     "productId":  "codex-shorekeeper-startup",
-    "version":  "1.0.0",
+    "version":  "1.1.0",
     "files":  [
                   {
                       "path":  "assets/icon.ico",
@@ -35,8 +35,8 @@
                   },
                   {
                       "path":  "launcher/inject.mjs",
-                      "sha256":  "d5e82183df92924e9455b27f901c223a506d694ec84a6f42e0f14efe63b2a9ce",
-                      "size":  17926
+                      "sha256":  "7adf9973e101ed9e7c8d879773ed9d1269d8314b0496caeaecd9e29a0671eb0b",
+                      "size":  24438
                   },
                   {
                       "path":  "launcher/install-desktop.ps1",
@@ -50,8 +50,8 @@
                   },
                   {
                       "path":  "launcher/launch.ps1",
-                      "sha256":  "c2dd5f25235620adc82d0473ad069576d54cd55d334a3dff5c70042f5dcef5ec",
-                      "size":  11915
+                      "sha256":  "5e2ecb0e08c086dee9d0999eae3175e6d571eb3025f279c38e96f0aa74a22004",
+                      "size":  23295
                   },
                   {
                       "path":  "launcher/manage.ps1",
@@ -70,13 +70,13 @@
                   },
                   {
                       "path":  "launcher/StartupGate.cs",
-                      "sha256":  "ee1d549e5827832416226ee864f1a30bf7ae4da95f5d98884d7d6627eb5e79df",
-                      "size":  23657
+                      "sha256":  "240b49c33903c6897d9775eeb75d02873519ba017d2a289e82b41126ebffc0ae",
+                      "size":  24577
                   },
                   {
                       "path":  "launcher/StartupGate.exe",
-                      "sha256":  "8f8b2293a32a14c43401075a6e528d5108540caa53da22e64ecb7f42e989bc90",
-                      "size":  20992
+                      "sha256":  "d4c378db682efd239936464d2f164b1298b5ce6c6b3e080e407cde0683c4ab7b",
+                      "size":  21504
                   },
                   {
                       "path":  "LICENSE",
@@ -110,7 +110,7 @@
                   },
                   {
                       "path":  "Shorekeeper-Codex.exe",
-                      "sha256":  "fe073d1b8f409fa51ad71b21424d66523da1e5f0c22a83127f6cd042e0932da7",
+                      "sha256":  "b63a34ad35837a762fceda79b2b4329d6699faf81952348521b728625c067b99",
                       "size":  48128
                   },
                   {
